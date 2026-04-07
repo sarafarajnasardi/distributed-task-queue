@@ -12,12 +12,34 @@ public class RedisQueueService {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
+    private static final String RETRY_QUEUE = "retry_queue";
     private static final String QUEUE_NAME = "task_queue";
     private static final String PROCESSING_QUEUE = "processing_queue";
+
+    private static final String DLQ = "dead_letter_queue";
     public RedisQueueService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
+
+
+    public void moveToDLQ(Task task) {
+        try {
+            String json = objectMapper.writeValueAsString(task);
+            redisTemplate.opsForList().leftPush(DLQ, json);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void requeue(Task task) {
+        try {
+            String json = objectMapper.writeValueAsString(task);
+            redisTemplate.opsForList().leftPush(QUEUE_NAME, json);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public void enqueue(Task task) {
         try {
@@ -38,7 +60,7 @@ public class RedisQueueService {
     public Task dequeue() {
         try {
             String json = redisTemplate.opsForList()
-                    .rightPopAndLeftPush(QUEUE_NAME, PROCESSING_QUEUE, Duration.ofSeconds(0));
+                    .rightPopAndLeftPush(QUEUE_NAME, PROCESSING_QUEUE, Duration.ofSeconds(30));
 
             if (json == null) return null;
 

@@ -29,21 +29,52 @@ public class Worker {
         for (int i = 0; i < workerCount; i++) {
             executor.submit(() -> {
                 while (true) {
-                    try {
-                        Task task = queueService.dequeue();
+                    int MAX_RETRIES = 3;
 
-                        if(task==null)continue;
+                    Task task = null;
+                    try {
+                        task = queueService.dequeue();
+
+                        if (task == null) continue;
+
                         System.out.println(Thread.currentThread().getName()
                                 + " Processing: " + task.getId());
+
+                        //  Simulate failure randomly
+//                        if (true) {
+//                            throw new RuntimeException("Simulated failure");
+//                        }
 
                         Thread.sleep(2000);
 
                         System.out.println(Thread.currentThread().getName()
                                 + " Done: " + task.getId());
+
                         queueService.ack(task);
 
                     } catch (Exception e) {
-                        e.printStackTrace();
+
+                        System.out.println("Task failed");
+
+                        if (task != null) {
+                            task.setRetryCount(task.getRetryCount() + 1);
+
+                            if (task.getRetryCount() <= MAX_RETRIES) {
+
+                                int delay = (int) Math.pow(2, task.getRetryCount());
+
+                                System.out.println("Retrying task: " + task.getId()
+                                        + " after " + delay + " seconds");
+
+                                Thread.sleep(delay * 1000);
+
+                                queueService.requeue(task);
+
+                            } else {
+                                System.out.println("Task moved to DLQ: " + task.getId());
+                                queueService.moveToDLQ(task);
+                            }
+                        }
                     }
                 }
             });

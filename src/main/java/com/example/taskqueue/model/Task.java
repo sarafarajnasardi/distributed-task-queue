@@ -4,7 +4,7 @@ public class Task {
 
     private String id;
     private String payload;
-
+    private int retryCount;
     public Task() {}
 
     public Task(String id, String payload) {
@@ -26,5 +26,13 @@ public class Task {
 
     public void setPayload(String payload) {
         this.payload = payload;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 }
